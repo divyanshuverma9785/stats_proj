@@ -1,21 +1,24 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 import warnings
-import os
-from dotenv import load_dotenv
 
 # Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
+warnings.filter_warnings("ignore")
 
 # Load environment variables from .env file
-load_dotenv()
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+loaded = load_dotenv(dotenv_path)
+print(f".env file loaded from {dotenv_path}: {loaded}")
 
 # Verify and set Hugging Face API token
 hf_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+print(f"HUGGINGFACEHUB_API_TOKEN: {'Set' if hf_token else 'Not set'}")
 if hf_token is None:
     raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set in the .env file or environment variables.")
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
@@ -24,6 +27,7 @@ os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
 data_directory = os.path.join(os.path.dirname(__file__), "Uploads", "data")
 if not os.path.exists(data_directory):
     os.makedirs(data_directory)  # Create directory if it doesn't exist
+    print(f"Created data directory: {data_directory}")
 
 # Load the vector store from disk
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
