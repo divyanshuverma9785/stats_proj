@@ -4,16 +4,26 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
-import warnings, os
+import warnings
+import os
 from dotenv import load_dotenv
 
+# Suppress warnings for cleaner output
+warnings.filterwarnings("ignore")
 
 # Load environment variables from .env file
 load_dotenv()
 
-data_directory = os.path.join(os.path.dirname(__file__), "uploads", "data")
+# Verify and set Hugging Face API token
+hf_token = os.getenv("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")
+if hf_token is None:
+    raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set in the .env file or environment variables.")
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
 
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = os.getenv("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")
+# Define data directory for vector store
+data_directory = os.path.join(os.path.dirname(__file__), "Uploads", "data")
+if not os.path.exists(data_directory):
+    os.makedirs(data_directory)  # Create directory if it doesn't exist
 
 # Load the vector store from disk
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -25,6 +35,7 @@ hf_hub_llm = HuggingFaceHub(
     model_kwargs={"temperature": 0.7, "max_new_tokens": 1024},
 )
 
+# Define the prompt template
 prompt_template = """
 As a knowledgeable restaurant assistant, your role is to accurately interpret food and restaurant queries and
 provide responses using our specialized restaurant database. Follow these directives to ensure optimal user interactions:
@@ -63,11 +74,13 @@ Answer:
 
 custom_prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
+# Set up the RetrievalQA chain
 rag_chain = RetrievalQA.from_chain_type(
     llm=hf_hub_llm,
     chain_type="stuff",
-    retriever=vector_store.as_retriever(top_k=5),  # Increased to fetch top 5 results to cover multiple restaurants
-    chain_type_kwargs={"prompt": custom_prompt})
+    retriever=vector_store.as_retriever(search_kwargs={"k": 5}),  # Fetch top 5 results
+    chain_type_kwargs={"prompt": custom_prompt}
+)
 
 def get_response(question):
     result = rag_chain({"query": question})
@@ -76,7 +89,9 @@ def get_response(question):
     answer = response_text[answer_start:].strip()
     return answer
 
-# Streamlit app
+# Streamlit app configuration
+st.set_page_config(page_title="FoodBot: Roorkee Restaurant Guide", page_icon="🍽️")
+
 # Remove whitespace from the top of the page and sidebar
 st.markdown(
     """
@@ -112,14 +127,14 @@ with st.sidebar:
     st.markdown(side_bar_message)
 
 initial_message = """
-    Hi there! I'm your FoodBot 🤖
-    Here are some questions you might ask me:\n
-    🍽️ What restaurants are available in Roorkee?\n
-    🍽️ Tell me about Hotel Prakash's menu\n
-    🍽️ What vegetarian options are available?\n
-    🍽️ What are the operating hours of restaurants in Roorkee?\n
-    🍽️ Can you recommend some spicy dishes?\n
-    🍽️ What's the price range for rolls at Hotel Prakash?
+Hi there! I'm your FoodBot 🤖
+Here are some questions you might ask me:\n
+🍽️ What restaurants are available in Roorkee?\n
+🍽️ Tell me about Hotel Prakash's menu\n
+🍽️ What vegetarian options are available?\n
+🍽️ What are the operating hours of restaurants in Roorkee?\n
+🍽️ Can you recommend some spicy dishes?\n
+🍽️ What's the price range for rolls at Hotel Prakash?
 """
 
 # Store LLM generated responses
