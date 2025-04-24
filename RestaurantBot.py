@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 load_dotenv()
 
 # Verify and set Hugging Face API token
-hf_token = os.getenv("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")
+hf_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 if hf_token is None:
     raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set in the .env file or environment variables.")
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
