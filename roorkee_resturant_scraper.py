@@ -8,6 +8,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 def scrape_zomato(url, filename="zomato_menu.json"):
     chrome_options = Options()
@@ -91,14 +93,6 @@ def scrape_zomato(url, filename="zomato_menu.json"):
         if category_data["items"]:
             menu_data.append(category_data)
 
-    print("Restaurant:", restaurant_info["name"])
-    print("Location:", restaurant_info["location"])
-    print("Contact:", restaurant_info["contact"])
-    if menu_data:
-        print("Sample menu items:", menu_data[0]["items"][:3])
-    else:
-        print("No menu items found.")
-
     os.makedirs("menu", exist_ok=True)
     filepath = os.path.join("menu", filename)
     final_data = {
@@ -108,6 +102,53 @@ def scrape_zomato(url, filename="zomato_menu.json"):
     with open(filepath, 'w') as f:
         json.dump(final_data, f, indent=4)
     print(f"Saved to {filepath}")
+
+def generate_pdf_from_json(json_folder="menu", output_pdf="combined_menu.pdf"):
+    c = canvas.Canvas(output_pdf, pagesize=letter)
+    width, height = letter
+    y = height - 50
+
+    for json_file in os.listdir(json_folder):
+        if json_file.endswith(".json"):
+            with open(os.path.join(json_folder, json_file), 'r') as f:
+                data = json.load(f)
+                restaurant = data.get("restaurant", {})
+                menu = data.get("menu", [])
+
+                c.setFont("Helvetica-Bold", 14)
+                c.drawString(50, y, f"Restaurant: {restaurant.get('name', 'N/A')}")
+                y -= 20
+                c.setFont("Helvetica", 12)
+                c.drawString(50, y, f"Location: {restaurant.get('location', 'N/A')}")
+                y -= 20
+                c.drawString(50, y, f"Contact: {restaurant.get('contact', 'N/A')}")
+                y -= 30
+
+                for section in menu:
+                    if y < 50:  # Add a new page if space is insufficient
+                        c.showPage()
+                        y = height - 50
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(50, y, f"Category: {section.get('category', 'N/A')}")
+                    y -= 20
+                    for item in section.get("items", []):
+                        if y < 50:
+                            c.showPage()
+                            y = height - 50
+                        c.setFont("Helvetica", 10)
+                        c.drawString(60, y, f"Name: {item.get('name', 'N/A')}")
+                        y -= 15
+                        c.drawString(60, y, f"Price: {item.get('price', 'N/A')}")
+                        y -= 15
+                        c.drawString(60, y, f"Description: {item.get('description', 'N/A')}")
+                        y -= 15
+                        c.drawString(60, y, f"Veg/Non-Veg: {item.get('veg_nonveg', 'N/A')}")
+                        y -= 15
+                        c.drawString(60, y, f"Spice Level: {item.get('spice_level', 'N/A')}")
+                        y -= 20
+
+    c.save()
+    print(f"PDF saved as {output_pdf}")
 
 urls = {
     "prakash_hotel": "https://www.zomato.com/roorkee/hotel-prakash-restaurant-roorkee-locality/order",
@@ -124,3 +165,6 @@ for name, url in urls.items():
         scrape_zomato(url, filename)
     except Exception as e:
         print(f" Failed to scrape {name}: {e}")
+
+# Generate a single PDF from all JSON files
+generate_pdf_from_json()
